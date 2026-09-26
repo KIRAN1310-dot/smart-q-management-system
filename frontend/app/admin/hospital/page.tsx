@@ -1,140 +1,96 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { BellRing, RotateCcw, Users, Plus, Trash2, ArrowLeft, Stethoscope } from "lucide-react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { readNumber, STORAGE_KEYS } from "../../../lib/queue";
+import { ArrowLeft, Plus, RefreshCw, Users, Activity } from "lucide-react";
 
-export default function HospitalAdminPage() {
-  const [currentCall, setCurrentCall] = useState(0);
-  const [lastIssued, setLastIssued] = useState(0);
-  const [doctorInput, setDoctorInput] = useState("");
-  const [doctorsList, setDoctorsList] = useState<string[]>([]);
+export default function HospitalAdmin() {
+  const [currentCall, setCurrentCall] = useState(1);
+  const [doctorName, setDoctorName] = useState("Dr. Ramesh, MBBS");
 
   useEffect(() => {
-    loadData();
-    window.addEventListener("storage", loadData);
-    const interval = window.setInterval(loadData, 500);
-    return () => {
-      window.removeEventListener("storage", loadData);
-      window.clearInterval(interval);
-    };
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("smartq_current_call");
+    if (saved) setCurrentCall(parseInt(saved, 10));
+    const savedDoc = window.localStorage.getItem("smartq_hospital_doctor");
+    if (savedDoc) setDoctorName(savedDoc);
   }, []);
 
-  function loadData() {
-    setCurrentCall(readNumber(STORAGE_KEYS.currentCall));
-    setLastIssued(readNumber(STORAGE_KEYS.lastIssuedToken));
-    const saved = localStorage.getItem("smartq_hospital_specialists");
-    if (saved) {
-      setDoctorsList(JSON.parse(saved));
-    } else {
-      setDoctorsList([]);
+  const updateCall = (newVal: number) => {
+    const val = newVal < 1 ? 1 : newVal;
+    setCurrentCall(val);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("smartq_current_call", val.toString());
     }
-  }
+  };
 
-  function handleAddDoctor(e: React.FormEvent) {
-    e.preventDefault();
-    if (!doctorInput.trim()) return;
-    const updated = [...doctorsList, doctorInput.trim()];
-    setDoctorsList(updated);
-    localStorage.setItem("smartq_hospital_specialists", JSON.stringify(updated));
-    setDoctorInput("");
-  }
-
-  function handleDeleteDoctor(index: number) {
-    const updated = doctorsList.filter((_, i) => i !== index);
-    setDoctorsList(updated);
-    localStorage.setItem("smartq_hospital_specialists", JSON.stringify(updated));
-  }
-
-  function callNext() {
-    const next = currentCall + 1;
-    const issued = Math.max(lastIssued, next);
-    localStorage.setItem(STORAGE_KEYS.lastIssuedToken, String(issued));
-    localStorage.setItem(STORAGE_KEYS.currentCall, String(next));
-    setCurrentCall(next);
-    setLastIssued(issued);
-  }
-
-  function resetQueue() {
-    localStorage.setItem(STORAGE_KEYS.currentCall, "0");
-    localStorage.setItem(STORAGE_KEYS.lastIssuedToken, "0");
-    setCurrentCall(0);
-    setLastIssued(0);
-  }
+  const handleDocChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDoctorName(e.target.value);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("smartq_hospital_doctor", e.target.value);
+    }
+  };
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-8">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center justify-between">
-          <Link className="text-xs text-slate-400 hover:text-teal-400 flex items-center gap-1" href="/select-sector">
+    <main className="min-h-screen bg-sky-950 px-4 py-8 text-white flex items-center justify-center">
+      <div className="w-full max-w-xl bg-slate-900 border border-sky-500/30 p-6 sm:p-8 rounded-3xl shadow-2xl">
+        
+        {/* HEADER */}
+        <div className="flex justify-between items-center mb-6">
+          <Link href="/admin/select-sector" className="text-xs text-sky-400 hover:underline flex items-center gap-1">
             <ArrowLeft size={14} /> Back to Sectors
           </Link>
-          <span className="text-xs bg-teal-500/10 border border-teal-500/30 text-teal-300 px-3 py-1 rounded-full uppercase font-semibold">
-            Hospital Admin Portal
+          <span className="text-xs bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-full uppercase">
+            🏥 Hospital Control Room
           </span>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_.7fr]">
-          <div className="space-y-6">
-            <div className="rounded-3xl border border-teal-500/20 bg-slate-900 p-8 text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 flex items-center justify-center gap-1">
-                <Stethoscope className="text-teal-400" size={14} /> Hospital Live Calling
-              </p>
-              <div className="my-6 text-7xl font-black tracking-tight text-teal-300">
-                {currentCall ? `#${currentCall}` : "—"}
-              </div>
-              <button
-                onClick={callNext}
-                className="mx-auto flex w-full items-center justify-center gap-3 rounded-2xl bg-teal-500 px-6 py-4 text-lg font-black text-slate-950 shadow-lg hover:bg-teal-400 transition"
-              >
-                <BellRing size={18} /> CALL NEXT HOSPITAL TOKEN
-              </button>
-              <button onClick={resetQueue} className="mx-auto mt-4 flex items-center gap-1 text-xs text-slate-500 hover:text-red-300">
-                <RotateCcw size={13} /> Reset Hospital Queue
-              </button>
-            </div>
+        <h1 className="text-2xl font-black mb-1 flex items-center gap-2">
+          <Activity className="text-sky-400" /> Hospital Queue Management
+        </h1>
+        <p className="text-xs text-slate-400 mb-6">Manage live patient tokens and doctor details.</p>
 
-            <div className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-              <h2 className="text-base font-bold text-teal-400 mb-1">Feed Hospital Doctors / Specialists</h2>
-              <p className="text-xs text-slate-400 mb-4">Add doctors so users can select them during booking.</p>
-              <form onSubmit={handleAddDoctor} className="flex gap-2 mb-4">
-                <input
-                  type="text"
-                  value={doctorInput}
-                  onChange={(e) => setDoctorInput(e.target.value)}
-                  placeholder="e.g. Dr. Arun (Cardiologist)"
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-teal-400"
-                />
-                <button type="submit" className="bg-teal-500 text-slate-950 font-bold px-4 py-3 rounded-xl text-xs hover:bg-teal-400 flex items-center gap-1">
-                  <Plus size={14} /> Add
-                </button>
-              </form>
-              {doctorsList.length === 0 ? (
-                <p className="text-slate-500 text-xs italic">No doctors added yet.</p>
-              ) : (
-                <ul className="space-y-2 max-h-40 overflow-y-auto">
-                  {doctorsList.map((doc, idx) => (
-                    <li key={idx} className="bg-slate-950 border border-slate-800 px-4 py-2.5 rounded-xl flex justify-between items-center text-xs">
-                      <span>{doc}</span>
-                      <button onClick={() => handleDeleteDoctor(idx)} className="text-red-400 hover:text-red-300">
-                        <Trash2 size={13} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-              <Users className="text-teal-400 mb-2" size={20} />
-              <p className="text-xs text-slate-500">Last Issued Token</p>
-              <p className="mt-1 text-3xl font-black">{lastIssued ? `#${lastIssued}` : "—"}</p>
-            </div>
+        {/* FEED DATA SECTION */}
+        <div className="bg-slate-950 p-4 rounded-2xl border border-sky-500/20 mb-6 space-y-4">
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">Active Doctor / Department:</label>
+            <input 
+              type="text" 
+              value={doctorName} 
+              onChange={handleDocChange}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:border-sky-500 outline-none"
+              placeholder="Enter Doctor Name"
+            />
           </div>
         </div>
+
+        {/* COUNTER DISPLAY */}
+        <div className="bg-slate-950 border border-sky-500/30 p-6 rounded-2xl text-center mb-6">
+          <p className="text-xs text-slate-400 uppercase tracking-wider">Now Calling Token</p>
+          <p className="text-6xl font-black text-sky-400 my-3">#{currentCall}</p>
+          
+          <div className="flex justify-center gap-4 mt-6">
+            <button 
+              onClick={() => updateCall(currentCall - 1)}
+              className="bg-slate-800 hover:bg-slate-700 px-5 py-2.5 rounded-xl text-sm font-bold transition"
+            >
+              Previous
+            </button>
+            <button 
+              onClick={() => updateCall(currentCall + 1)}
+              className="bg-sky-600 hover:bg-sky-500 px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-sky-600/30 transition flex items-center gap-1"
+            >
+              <Plus size={16} /> Next Token
+            </button>
+            <button 
+              onClick={() => updateCall(1)}
+              className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-4 py-2.5 rounded-xl text-sm transition"
+            >
+              <RefreshCw size={16} />
+            </button>
+          </div>
+        </div>
+
       </div>
     </main>
   );
